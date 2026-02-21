@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atomic Habit Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script>
+        // Tailwind config for dark mode
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s ease, color 0.3s ease; }
+        .habit-card { transition: all 0.3s ease; }
+        .habit-card:hover { transform: translateY(-2px); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-quote { animation: fadeIn 0.5s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen">
+
+<div class="max-w-3xl mx-auto px-4 py-12">
+    <!-- Header & Theme Toggle -->
+    <header class="mb-12 flex justify-between items-center">
+        <div class="text-left">
+            <h1 class="text-4xl font-bold text-slate-900 dark:text-white mb-2">Habit Tracker</h1>
+            <p class="text-slate-500 dark:text-slate-400 italic">"Zinciri kırma, atomik adımlarla ilerle."</p>
+        </div>
+        <button onclick="toggleDarkMode()" id="themeBtn" class="p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-yellow-400 hover:scale-110 transition-transform">
+            <i data-lucide="sun" id="sunIcon" class="hidden w-6 h-6"></i>
+            <i data-lucide="moon" id="moonIcon" class="w-6 h-6"></i>
+        </button>
+    </header>
+
+    <!-- Debug Alert -->
+    <div id="errorAlert" class="hidden mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl text-sm">
+        <strong>Hata Oluştu:</strong> <span id="errorDetails"></span>
+    </div>
+
+    <!-- Add Habit Form -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 mb-10">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-white">
+            <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-500"></i>
+            Yeni Alışkanlık Ekle
+        </h2>
+        <div class="flex flex-col md:flex-row gap-3">
+            <input type="text" id="habitName" placeholder="Alışkanlık adı"
+                   class="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+            <input type="text" id="habitDesc" placeholder="Açıklama"
+                   class="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+            <button onclick="addHabit()"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-medium shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
+                Ekle
+            </button>
+        </div>
+    </div>
+
+    <!-- Quote Area -->
+    <div id="quoteSection" class="hidden mb-10 p-6 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-3xl animate-quote text-center">
+        <i data-lucide="quote" class="w-8 h-8 text-indigo-200 dark:text-indigo-800 mx-auto mb-3"></i>
+        <p id="quoteText" class="text-indigo-900 dark:text-indigo-200 text-lg font-medium italic mb-2"></p>
+        <p id="quoteAuthor" class="text-indigo-500 dark:text-indigo-400 text-sm uppercase tracking-wider font-semibold"></p>
+    </div>
+
+    <!-- Habit List -->
+    <div id="habitList" class="space-y-4">
+        <div class="text-center py-10 text-slate-400 italic">Yükleniyor...</div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-indigo-600 text-white px-6 py-3 rounded-full shadow-2xl transition-all opacity-0 translate-y-10 pointer-events-none z-50 text-sm font-medium">
+    İşlem başarılı!
+</div>
+
+<script>
+    const API_URL = '/api/habits';
+
+    // --- Dark Mode Logic ---
+    function initTheme() {
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            document.getElementById('sunIcon').classList.remove('hidden');
+            document.getElementById('moonIcon').classList.add('hidden');
+        } else {
+            document.documentElement.classList.remove('dark');
+            document.getElementById('sunIcon').classList.add('hidden');
+            document.getElementById('moonIcon').classList.remove('hidden');
+        }
+    }
+
+    function toggleDarkMode() {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.theme = isDark ? 'dark' : 'light';
+        document.getElementById('sunIcon').classList.toggle('hidden');
+        document.getElementById('moonIcon').classList.toggle('hidden');
+    }
+
+    // --- Data Logic ---
+    async function fetchHabits() {
+        const errorAlert = document.getElementById('errorAlert');
+        const errorDetails = document.getElementById('errorDetails');
+
+        try {
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error(`Sunucu Hatası: ${response.status}`);
+            const habits = await response.json();
+            errorAlert.classList.add('hidden');
+            renderHabits(habits);
+        } catch (error) {
+            console.error(error);
+            errorDetails.innerText = "Backend çalışmıyor olabilir (localhost:8080).";
+            errorAlert.classList.remove('hidden');
+            document.getElementById('habitList').innerHTML = "";
+        }
+    }
+
+    function renderHabits(habits) {
+        const list = document.getElementById('habitList');
+        if (habits.length === 0) {
+            list.innerHTML = `<div class="text-center py-10 text-slate-400 dark:text-slate-600">Henüz bir alışkanlık yok. Atomik bir başlangıç yap!</div>`;
+            return;
+        }
+
+        list.innerHTML = habits.map(habit => `
+                <div class="habit-card bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div class="flex-1">
+                        <h3 class="font-bold text-slate-800 dark:text-white text-lg">${habit.name}</h3>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm">${habit.description || ''}</p>
+                        <div class="flex items-center gap-4 mt-2">
+                            <span class="flex items-center gap-1 text-orange-500 dark:text-orange-400 font-bold text-sm">
+                                <i data-lucide="flame" class="w-4 h-4"></i> ${habit.streak} Gün
+                            </span>
+                            ${habit.completedToday ?
+            '<span class="text-emerald-500 dark:text-emerald-400 text-xs font-bold uppercase tracking-widest flex items-center gap-1"><i data-lucide="check-circle" class="w-4 h-4"></i> Tamamlandı</span>' :
+            ''}
+                        </div>
+                    </div>
+                    <div class="flex gap-2 ml-4">
+                        <button onclick="completeHabit(${habit.id})" ${habit.completedToday ? 'disabled' : ''}
+                            class="p-3 rounded-xl transition-all ${habit.completedToday ? 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-700 cursor-not-allowed' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white'}">
+                            <i data-lucide="check" class="w-6 h-6"></i>
+                        </button>
+                        <button onclick="deleteHabit(${habit.id})"
+                            class="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-600 hover:text-white transition-all">
+                            <i data-lucide="trash-2" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        lucide.createIcons();
+    }
+
+    async function addHabit() {
+        const name = document.getElementById('habitName').value;
+        const description = document.getElementById('habitDesc').value;
+        if (!name) return showToast("Bir isim gerekli!");
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description, streak: 0, completedToday: false })
+            });
+            if (response.ok) {
+                document.getElementById('habitName').value = '';
+                document.getElementById('habitDesc').value = '';
+                fetchHabits();
+                showToast("Yeni alışkanlık eklendi 🚀");
+            }
+        } catch (err) { showToast("Eklenemedi!"); }
+    }
+
+    async function completeHabit(id) {
+        try {
+            const response = await fetch(`${API_URL}/${id}/complete`, { method: 'POST' });
+            if (response.ok) {
+                const data = await response.json();
+                fetchHabits();
+                showQuote(data.motivationMessage);
+                showToast("Harika gidiyorsun! +1 Gün");
+            }
+        } catch (err) { showToast("Bir hata oluştu."); }
+    }
+
+    async function deleteHabit(id) {
+        const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+        if (response.ok) { fetchHabits(); showToast("Alışkanlık silindi."); }
+    }
+
+    function showQuote(message) {
+        const section = document.getElementById('quoteSection');
+        if (message && message.includes(' — ')) {
+            const [text, author] = message.split(' — ');
+            document.getElementById('quoteText').innerText = text;
+            document.getElementById('quoteAuthor').innerText = author;
+            section.classList.remove('hidden');
+            section.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.classList.remove('opacity-0', 'translate-y-10');
+        toast.classList.add('opacity-100', 'translate-y-0');
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-10');
+            toast.classList.remove('opacity-100', 'translate-y-0');
+        }, 3000);
+    }
+
+    // --- Initialization ---
+    initTheme();
+    fetchHabits();
+    lucide.createIcons();
+</script>
+</body>
+</html>

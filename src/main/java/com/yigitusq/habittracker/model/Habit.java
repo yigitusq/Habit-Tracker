@@ -6,6 +6,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
+import java.time.DayOfWeek;
 
 @Entity
 @Data
@@ -36,4 +37,15 @@ public class Habit {
     @CollectionTable(name = "habit_logs", joinColumns = @JoinColumn(name = "habit_id"))
     @Column(name = "completed_date")
     private Set<LocalDate> history = new HashSet<>();
+
+    // Alışkanlık sıklığı: DAILY (Her Gün) veya SPECIFIC_DAYS (Belirli Günler)
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'DAILY'")
+    private String frequency = "DAILY";
+
+    // Eğer SPECIFIC_DAYS seçildiyse hangi günler yapılacak? (Örn: MONDAY, WEDNESDAY)
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "habit_target_days", joinColumns = @JoinColumn(name = "habit_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "day_of_week")
+    private Set<DayOfWeek> targetDays = new HashSet<>();
 }

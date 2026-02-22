@@ -65,15 +65,34 @@
             <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-500"></i>
             Yeni Alışkanlık Ekle
         </h2>
-        <div class="flex flex-col md:flex-row gap-3">
-            <input type="text" id="habitName" placeholder="Alışkanlık adı"
-                   class="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
-            <input type="text" id="habitDesc" placeholder="Açıklama"
-                   class="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
-            <button onclick="addHabit()"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-medium shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
-                Ekle
-            </button>
+        <div class="flex flex-col gap-4">
+            <div class="flex flex-col md:flex-row gap-3">
+                <input type="text" id="habitName" placeholder="Alışkanlık adı (Örn: Antrenman)"
+                       class="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                <input type="text" id="habitDesc" placeholder="Açıklama"
+                       class="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+
+                <select id="habitFrequency" onchange="toggleDaysSelection()" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                    <option value="DAILY">Her Gün</option>
+                    <option value="SPECIFIC_DAYS">Belirli Günler</option>
+                </select>
+
+                <button onclick="addHabit()"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-medium shadow-lg shadow-indigo-500/20 transition-all active:scale-95 whitespace-nowrap">
+                    Ekle
+                </button>
+            </div>
+
+            <div id="daysSelection" class="hidden flex-wrap gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span class="text-sm text-slate-500 dark:text-slate-400 w-full mb-1">Hangi günler yapılacak?</span>
+                <label class="cursor-pointer bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"><input type="checkbox" value="MONDAY" class="day-cb mr-1"> Pzt</label>
+                <label class="cursor-pointer bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"><input type="checkbox" value="TUESDAY" class="day-cb mr-1"> Sal</label>
+                <label class="cursor-pointer bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"><input type="checkbox" value="WEDNESDAY" class="day-cb mr-1"> Çar</label>
+                <label class="cursor-pointer bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"><input type="checkbox" value="THURSDAY" class="day-cb mr-1"> Per</label>
+                <label class="cursor-pointer bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"><input type="checkbox" value="FRIDAY" class="day-cb mr-1"> Cum</label>
+                <label class="cursor-pointer bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"><input type="checkbox" value="SATURDAY" class="day-cb mr-1"> Cmt</label>
+                <label class="cursor-pointer bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"><input type="checkbox" value="SUNDAY" class="day-cb mr-1"> Paz</label>
+            </div>
         </div>
     </div>
 
@@ -206,20 +225,59 @@
         lucide.createIcons();
     }
 
+    // Gün seçim bölümünü açıp kapatır
+    function toggleDaysSelection() {
+        const freq = document.getElementById('habitFrequency').value;
+        const daysDiv = document.getElementById('daysSelection');
+        if (freq === 'SPECIFIC_DAYS') {
+            daysDiv.classList.remove('hidden');
+            daysDiv.classList.add('flex');
+        } else {
+            daysDiv.classList.add('hidden');
+            daysDiv.classList.remove('flex');
+        }
+    }
+
+    // Backend'e gönderilecek veriyi güncelliyoruz
     async function addHabit() {
         const name = document.getElementById('habitName').value;
         const description = document.getElementById('habitDesc').value;
+        const frequency = document.getElementById('habitFrequency').value;
+
         if (!name) return showToast("Bir isim gerekli!");
+
+        // Seçilen günleri topla
+        let targetDays = [];
+        if (frequency === 'SPECIFIC_DAYS') {
+            const checkboxes = document.querySelectorAll('.day-cb:checked');
+            checkboxes.forEach(cb => targetDays.push(cb.value));
+
+            if (targetDays.length === 0) {
+                return showToast("Lütfen en az bir gün seçin!");
+            }
+        }
 
         try {
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, description, streak: 0, completedToday: false })
+                body: JSON.stringify({
+                    name,
+                    description,
+                    frequency,
+                    targetDays, // Backend'e seçili günleri gönderiyoruz
+                    streak: 0,
+                    completedToday: false
+                })
             });
             if (response.ok) {
                 document.getElementById('habitName').value = '';
                 document.getElementById('habitDesc').value = '';
+                // Checkboxları sıfırla
+                document.querySelectorAll('.day-cb').forEach(cb => cb.checked = false);
+                document.getElementById('habitFrequency').value = 'DAILY';
+                toggleDaysSelection();
+
                 fetchHabits();
                 showToast("Yeni alışkanlık eklendi 🚀");
             }

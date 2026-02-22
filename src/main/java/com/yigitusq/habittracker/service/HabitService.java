@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import java.time.DayOfWeek;
 
 
 import java.time.LocalDate;
@@ -47,7 +48,6 @@ public class HabitService {
         return habitRepository.save(existingHabit);
     }
 
-    // HabitService.java içine QuoteService'i enjekte et
     private final QuoteService quoteService;
     public HabitCompletionResponse completeHabit(Long id) {
         Habit habit = getHabitById(id);
@@ -57,11 +57,31 @@ public class HabitService {
             return new HabitCompletionResponse(habit, "Bugünlük hedefine zaten ulaştın!", false, null);
         }
 
-        // Streak Kontrolü
-        if (habit.getLastCompletedDate() != null && habit.getLastCompletedDate().isEqual(today.minusDays(1))) {
+        boolean streakMaintained = false;
+
+        if (habit.getLastCompletedDate() == null) {
+        }
+        else if ("DAILY".equals(habit.getFrequency()) || habit.getFrequency() == null) {
+            if (habit.getLastCompletedDate().isEqual(today.minusDays(1))) {
+                streakMaintained = true;
+            }
+        }
+        else if ("SPECIFIC_DAYS".equals(habit.getFrequency()) && habit.getTargetDays() != null && !habit.getTargetDays().isEmpty()) {
+            LocalDate previousTargetDate = today.minusDays(1);
+
+            while (!habit.getTargetDays().contains(previousTargetDate.getDayOfWeek())) {
+                previousTargetDate = previousTargetDate.minusDays(1);
+            }
+
+            if (!habit.getLastCompletedDate().isBefore(previousTargetDate)) {
+                streakMaintained = true;
+            }
+        }
+
+        if (streakMaintained) {
             habit.setStreak(habit.getStreak() + 1);
         } else {
-            habit.setStreak(1);
+            habit.setStreak(1); // Zincir kırıldıysa veya ilk günse 1 yap
         }
 
         habit.setLastCompletedDate(today);
@@ -70,12 +90,9 @@ public class HabitService {
         if (habit.getHistory() == null) habit.setHistory(new HashSet<>());
         habit.getHistory().add(today);
 
-        // --- OYUNLAŞTIRMA MANTIĞI ---
         boolean leveledUp = false;
-        habit.setXp(habit.getXp() + 20); // Her tamamlama 20 XP verir
+        habit.setXp(habit.getXp() + 20);
 
-        // Seviye atlama sınırı: (Mevcut Seviye * 100)
-        // Örn: Level 1->2 için 100 XP, Level 2->3 için 200 XP gerekir.
         int xpNeededForNextLevel = habit.getLevel() * 100;
         if (habit.getXp() >= xpNeededForNextLevel) {
             habit.setXp(habit.getXp() - xpNeededForNextLevel);
@@ -83,7 +100,6 @@ public class HabitService {
             leveledUp = true;
         }
 
-        // Rozet Mantığı
         java.util.List<String> newBadges = new java.util.ArrayList<>();
         if (habit.getBadges() == null) habit.setBadges(new HashSet<>());
 

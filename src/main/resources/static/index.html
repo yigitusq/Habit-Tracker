@@ -20,6 +20,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-quote { animation: fadeIn 0.5s ease-out forwards; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen">
 
@@ -126,32 +127,56 @@
             return;
         }
 
-        list.innerHTML = habits.map(habit => `
+        list.innerHTML = habits.map(habit => {
+            // XP Yüzdesi hesaplama (Progress Bar için)
+            const xpNeeded = habit.level * 100;
+            const progressPercent = (habit.xp / xpNeeded) * 100;
+
+            // Rozetleri yan yana yazdırma
+            const badgesHtml = habit.badges && habit.badges.length > 0
+                ? `<div class="mt-3 flex flex-wrap gap-2">
+                    ${habit.badges.map(b => `<span class="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs px-2 py-1 rounded-lg font-medium border border-yellow-200 dark:border-yellow-800/50">${b}</span>`).join('')}
+                   </div>`
+                : '';
+
+            return `
                 <div class="habit-card bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div class="flex-1">
-                        <h3 class="font-bold text-slate-800 dark:text-white text-lg">${habit.name}</h3>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm">${habit.description || ''}</p>
-                        <div class="flex items-center gap-4 mt-2">
-                            <span class="flex items-center gap-1 text-orange-500 dark:text-orange-400 font-bold text-sm">
-                                <i data-lucide="flame" class="w-4 h-4"></i> ${habit.streak} Gün
-                            </span>
-                            ${habit.completedToday ?
-            '<span class="text-emerald-500 dark:text-emerald-400 text-xs font-bold uppercase tracking-widest flex items-center gap-1"><i data-lucide="check-circle" class="w-4 h-4"></i> Tamamlandı</span>' :
-            ''}
+                    <div class="flex-1 pr-4">
+                        <div class="flex justify-between items-start mb-1">
+                            <h3 class="font-bold text-slate-800 dark:text-white text-lg">${habit.name}</h3>
+                            <span class="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 text-xs font-bold px-2 py-1 rounded-md">Lvl ${habit.level}</span>
                         </div>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm mb-3">${habit.description || ''}</p>
+
+                        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mb-2">
+                            <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-500" style="width: ${progressPercent}%"></div>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-slate-400 font-medium">
+                            <span>${habit.xp} / ${xpNeeded} XP</span>
+                            <div class="flex items-center gap-3">
+                                <span class="flex items-center gap-1 text-orange-500 dark:text-orange-400 font-bold">
+                                    <i data-lucide="flame" class="w-4 h-4"></i> ${habit.streak} Gün
+                                </span>
+                                ${habit.completedToday ? '<span class="text-emerald-500 flex items-center gap-1"><i data-lucide="check-circle" class="w-4 h-4"></i> Tamam</span>' : ''}
+                            </div>
+                        </div>
+
+                        ${badgesHtml}
                     </div>
-                    <div class="flex gap-2 ml-4">
+
+                    <div class="flex gap-2 ml-4 flex-col sm:flex-row border-l border-slate-100 dark:border-slate-800 pl-4">
                         <button onclick="completeHabit(${habit.id})" ${habit.completedToday ? 'disabled' : ''}
-                            class="p-3 rounded-xl transition-all ${habit.completedToday ? 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-700 cursor-not-allowed' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white'}">
+                            class="p-3 rounded-xl transition-all ${habit.completedToday ? 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-700 cursor-not-allowed' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/20'}">
                             <i data-lucide="check" class="w-6 h-6"></i>
                         </button>
                         <button onclick="deleteHabit(${habit.id})"
-                            class="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-600 hover:text-white transition-all">
+                            class="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-600 hover:text-white transition-all hover:-translate-y-1">
                             <i data-lucide="trash-2" class="w-6 h-6"></i>
                         </button>
                     </div>
                 </div>
-            `).join('');
+            `;
+        }).join('');
         lucide.createIcons();
     }
 
@@ -180,9 +205,26 @@
             const response = await fetch(`${API_URL}/${id}/complete`, { method: 'POST' });
             if (response.ok) {
                 const data = await response.json();
+
+                // Konfeti Patlat! 🎉
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 },
+                    colors: ['#4f46e5', '#10b981', '#f59e0b', '#ec4899']
+                });
+
                 fetchHabits();
                 showQuote(data.motivationMessage);
-                showToast("Harika gidiyorsun! +1 Gün");
+                showToast("+20 XP! Harika gidiyorsun! 🚀");
+
+                // Ekstra kutlamalar (Gecikmeli Toast)
+                if (data.leveledUp) {
+                    setTimeout(() => showToast("Tebrikler! SEVİYE ATLADIN! 🌟"), 3500);
+                }
+                if (data.newBadges && data.newBadges.length > 0) {
+                    setTimeout(() => showToast("YENİ ROZET KAZANDIN: " + data.newBadges[0]), 7000);
+                }
             }
         } catch (err) { showToast("Bir hata oluştu."); }
     }

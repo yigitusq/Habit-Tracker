@@ -16,11 +16,21 @@ public class Habit {
 
     private String name;
     private String description;
+    private int streak;
+    private boolean completedToday;
+    private LocalDate lastCompletedDate;
 
-    private int streak; // Zincir sayısı
-    private boolean completedToday; // Bugün yapıldı mı?
 
-    private LocalDate lastCompletedDate; // Son yapılma tarihi
+    @Column(nullable = false, columnDefinition = "integer default 1")
+    private int level = 1;
+
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    private int xp = 0;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "habit_badges", joinColumns = @JoinColumn(name = "habit_id"))
+    @Column(name = "badge")
+    private Set<String> badges = new HashSet<>();
 
     @ElementCollection
     @CollectionTable(name = "habit_logs", joinColumns = @JoinColumn(name = "habit_id"))

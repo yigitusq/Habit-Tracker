@@ -49,37 +49,60 @@ public class HabitService {
 
     // HabitService.java içine QuoteService'i enjekte et
     private final QuoteService quoteService;
-
     public HabitCompletionResponse completeHabit(Long id) {
         Habit habit = getHabitById(id);
         LocalDate today = LocalDate.now();
 
-        // Bugün zaten yapıldıysa işlemi durdur, tekrar arttırma
         if (habit.getLastCompletedDate() != null && habit.getLastCompletedDate().isEqual(today)) {
-            return new HabitCompletionResponse(habit,"Bugünlük hedefine zaten ulaştın!");
+            return new HabitCompletionResponse(habit, "Bugünlük hedefine zaten ulaştın!", false, null);
         }
 
-        // 2. Gerçekçi Streak (Seri) Mantığı:
-        // Eğer en son tamamlanma tarihi tam olarak DÜN ise seriyi 1 arttır.
+        // Streak Kontrolü
         if (habit.getLastCompletedDate() != null && habit.getLastCompletedDate().isEqual(today.minusDays(1))) {
             habit.setStreak(habit.getStreak() + 1);
         } else {
-            // Eğer dün yapılmadıysa (zincir kırıldıysa) veya ilk defa yapılıyorsa seriyi 1'den başlat.
             habit.setStreak(1);
         }
 
         habit.setLastCompletedDate(today);
         habit.setCompletedToday(true);
 
-        if (habit.getHistory() == null) {
-            habit.setHistory(new HashSet<>());
-        }
+        if (habit.getHistory() == null) habit.setHistory(new HashSet<>());
         habit.getHistory().add(today);
 
-        // 5. Veritabanına kaydet
+        // --- OYUNLAŞTIRMA MANTIĞI ---
+        boolean leveledUp = false;
+        habit.setXp(habit.getXp() + 20); // Her tamamlama 20 XP verir
+
+        // Seviye atlama sınırı: (Mevcut Seviye * 100)
+        // Örn: Level 1->2 için 100 XP, Level 2->3 için 200 XP gerekir.
+        int xpNeededForNextLevel = habit.getLevel() * 100;
+        if (habit.getXp() >= xpNeededForNextLevel) {
+            habit.setXp(habit.getXp() - xpNeededForNextLevel);
+            habit.setLevel(habit.getLevel() + 1);
+            leveledUp = true;
+        }
+
+        // Rozet Mantığı
+        java.util.List<String> newBadges = new java.util.ArrayList<>();
+        if (habit.getBadges() == null) habit.setBadges(new HashSet<>());
+
+        if (habit.getStreak() == 3 && !habit.getBadges().contains("3 Günlük Isınma 🔥")) {
+            habit.getBadges().add("3 Günlük Isınma 🔥");
+            newBadges.add("3 Günlük Isınma 🔥");
+        }
+        if (habit.getStreak() == 7 && !habit.getBadges().contains("1 Haftalık Seri 🥉")) {
+            habit.getBadges().add("1 Haftalık Seri 🥉");
+            newBadges.add("1 Haftalık Seri 🥉");
+        }
+        if (habit.getStreak() == 21 && !habit.getBadges().contains("Alışkanlık Avcısı 🏆")) {
+            habit.getBadges().add("Alışkanlık Avcısı 🏆");
+            newBadges.add("Alışkanlık Avcısı 🏆");
+        }
+
         habitRepository.save(habit);
 
         String quote = quoteService.getRandomQuote();
-        return new HabitCompletionResponse(habit, quote);
+        return new HabitCompletionResponse(habit, quote, leveledUp, newBadges);
     }
 }

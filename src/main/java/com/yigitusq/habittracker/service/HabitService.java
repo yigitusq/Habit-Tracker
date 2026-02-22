@@ -10,6 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 
 @Service
@@ -53,14 +54,29 @@ public class HabitService {
         Habit habit = getHabitById(id);
         LocalDate today = LocalDate.now();
 
-        // Bugün zaten yapıldıysa tekrar artırma
+        // Bugün zaten yapıldıysa işlemi durdur, tekrar arttırma
         if (habit.getLastCompletedDate() != null && habit.getLastCompletedDate().isEqual(today)) {
-            return new HabitCompletionResponse(habit, "Bugünlük hedefine zaten ulaştın!");
+            return new HabitCompletionResponse(habit,"Bugünlük hedefine zaten ulaştın!");
         }
 
-        habit.setStreak(habit.getStreak() + 1);
+        // 2. Gerçekçi Streak (Seri) Mantığı:
+        // Eğer en son tamamlanma tarihi tam olarak DÜN ise seriyi 1 arttır.
+        if (habit.getLastCompletedDate() != null && habit.getLastCompletedDate().isEqual(today.minusDays(1))) {
+            habit.setStreak(habit.getStreak() + 1);
+        } else {
+            // Eğer dün yapılmadıysa (zincir kırıldıysa) veya ilk defa yapılıyorsa seriyi 1'den başlat.
+            habit.setStreak(1);
+        }
+
         habit.setLastCompletedDate(today);
         habit.setCompletedToday(true);
+
+        if (habit.getHistory() == null) {
+            habit.setHistory(new HashSet<>());
+        }
+        habit.getHistory().add(today);
+
+        // 5. Veritabanına kaydet
         habitRepository.save(habit);
 
         String quote = quoteService.getRandomQuote();

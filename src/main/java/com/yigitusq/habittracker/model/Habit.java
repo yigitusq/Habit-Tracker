@@ -32,7 +32,7 @@ public class Habit {
     @Column(name = "badge")
     private Set<String> badges = new HashSet<>();
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "habit_logs", joinColumns = @JoinColumn(name = "habit_id"))
     @Column(name = "completed_date")
     private Set<LocalDate> history = new HashSet<>();

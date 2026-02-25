@@ -21,7 +21,22 @@ public class HabitService {
     private final HabitRepository habitRepository;
 
     public List<Habit> getAllHabits() {
-        return habitRepository.findAll();
+        List<Habit> habits = habitRepository.findAll();
+        LocalDate today = LocalDate.now();
+        boolean updated = false;
+
+        for (Habit habit : habits) {
+            if (habit.isCompletedToday() && (habit.getLastCompletedDate() == null || !habit.getLastCompletedDate().isEqual(today))) {
+                habit.setCompletedToday(false);
+                updated = true;
+            }
+        }
+
+        if (updated) {
+            habitRepository.saveAll(habits);
+        }
+
+        return habits;
     }
 
     public Habit saveHabit(Habit habit) {

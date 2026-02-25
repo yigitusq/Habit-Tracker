@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 import java.time.DayOfWeek;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Data
@@ -38,14 +39,17 @@ public class Habit {
     @Column(name = "completed_date")
     private Set<LocalDate> history = new HashSet<>();
 
-    // Alışkanlık sıklığı: DAILY (Her Gün) veya SPECIFIC_DAYS (Belirli Günler)
-    @Column(nullable = false, columnDefinition = "varchar(20) default 'DAILY'")
+    @Column(nullable = false, length = 20)
+    @ColumnDefault("'DAILY'")
     private String frequency = "DAILY";
 
-    // Eğer SPECIFIC_DAYS seçildiyse hangi günler yapılacak? (Örn: MONDAY, WEDNESDAY)
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "habit_target_days", joinColumns = @JoinColumn(name = "habit_id"))
     @Enumerated(EnumType.STRING)
     @Column(name = "day_of_week")
     private Set<DayOfWeek> targetDays = new HashSet<>();
+
+    @Column(nullable = false, length = 50)
+    @ColumnDefault("'Genel'")
+    private String category = "Genel";
 }
